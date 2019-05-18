@@ -1,4 +1,4 @@
-package main
+package suncalc
 
 // Translated in GO from the NPM library:
 //   https://github.com/mourner/suncalc
@@ -91,8 +91,8 @@ const (
 )
 
 type DayTime struct {
-	morningName DayTimeName
-	time        time.Time
+	MorningName DayTimeName
+	Time        time.Time
 }
 
 type dayTimeConf struct {
