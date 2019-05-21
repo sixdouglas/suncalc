@@ -117,8 +117,8 @@ func sunCoords(d float64) coord {
 }
 
 type SunPosition struct {
-	azimuth  float64
-	altitude float64
+	Azimuth  float64
+	Altitude float64
 }
 
 // calculates sun position for a given date and latitude/longitude
@@ -169,7 +169,7 @@ func getSetJ(h float64, lw float64, phi float64, dec float64, n float64, M float
 }
 
 // calculates sun times for a given date and latitude/longitude
-func GetTimes(date time.Time, lat float64, lng float64) []DayTime {
+func GetTimes(date time.Time, lat float64, lng float64) map[DayTimeName]DayTime {
 	lw := rad * -lng
 	phi := rad * lat
 
@@ -185,10 +185,10 @@ func GetTimes(date time.Time, lat float64, lng float64) []DayTime {
 
 	//i, len, DayTime, Jset, Jrise;
 	var oneTime dayTimeConf
-	var result []DayTime
+	result := make(map[DayTimeName]DayTime)
 
-	result = append(result, DayTime{SolarNoon, fromJulian(Jnoon)})
-	result = append(result, DayTime{Nadir, fromJulian(Jnoon - 0.5)})
+	result[SolarNoon] = DayTime{SolarNoon, fromJulian(Jnoon)}
+	result[Nadir] = DayTime{Nadir, fromJulian(Jnoon - 0.5)}
 
 	for i := 0; i < len(times); i++ {
 		oneTime = times[i]
@@ -196,8 +196,8 @@ func GetTimes(date time.Time, lat float64, lng float64) []DayTime {
 		Jset := getSetJ(oneTime.angle*rad, lw, phi, dec, n, M, L)
 		Jrise := Jnoon - (Jset - Jnoon)
 
-		result = append(result, DayTime{oneTime.morningName, fromJulian(Jrise)})
-		result = append(result, DayTime{oneTime.eveningName, fromJulian(Jset)})
+		result[oneTime.morningName] = DayTime{oneTime.morningName, fromJulian(Jrise)}
+		result[oneTime.eveningName] = DayTime{oneTime.eveningName, fromJulian(Jset)}
 	}
 
 	return result
@@ -227,10 +227,10 @@ func moonCoords(d float64) moonCoordinates { // geocentric ecliptic coordinates 
 }
 
 type MoonPosition struct {
-	azimuth          float64
-	altitude         float64
-	distance         float64
-	parallacticAngle float64
+	Azimuth          float64
+	Altitude         float64
+	Distance         float64
+	ParallacticAngle float64
 }
 
 func GetMoonPosition(date time.Time, lat float64, lng float64) MoonPosition {
@@ -290,10 +290,10 @@ func hoursLater(date time.Time, h int64) time.Time {
 }
 
 type MoonTimes struct {
-	rise       time.Time
-	set        time.Time
-	alwaysUp   bool
-	alwaysDown bool
+	Rise       time.Time
+	Set        time.Time
+	AlwaysUp   bool
+	AlwaysDown bool
 }
 
 // calculations for moon rise/set times are based on http://www.stargazing.net/kepler/moonrise.html article
@@ -306,7 +306,7 @@ func GetMoonTimes(date time.Time, lat float64, lng float64, inUTC bool) MoonTime
 	}
 
 	hc := 0.133 * rad
-	h0 := GetMoonPosition(t, lat, lng).altitude - hc
+	h0 := GetMoonPosition(t, lat, lng).Altitude - hc
 	//h1, h2, rise, set, a, b, xe, ye, d, roots, x1, x2, dx;
 	var ye float64
 	var x1 float64
@@ -318,8 +318,8 @@ func GetMoonTimes(date time.Time, lat float64, lng float64, inUTC bool) MoonTime
 	i := int64(0)
 	for i <= 24 {
 
-		h1 := GetMoonPosition(hoursLater(t, i), lat, lng).altitude - hc
-		h2 := GetMoonPosition(hoursLater(t, i+1), lat, lng).altitude - hc
+		h1 := GetMoonPosition(hoursLater(t, i), lat, lng).Altitude - hc
+		h2 := GetMoonPosition(hoursLater(t, i+1), lat, lng).Altitude - hc
 		a := (h0+h2)/2 - h1
 		b := (h2 - h0) / 2
 		xe := -b / (2 * a)
@@ -370,16 +370,16 @@ func GetMoonTimes(date time.Time, lat float64, lng float64, inUTC bool) MoonTime
 	var result = MoonTimes{}
 
 	if rise != 0 {
-		result.rise = hoursLater(t, int64(rise))
+		result.Rise = hoursLater(t, int64(rise))
 	}
 	if set != 0 {
-		result.set = hoursLater(t, int64(set))
+		result.Set = hoursLater(t, int64(set))
 	}
 	if rise == 0 && set == 0 {
 		if ye > 0 {
-			result.alwaysUp = true
+			result.AlwaysUp = true
 		} else {
-			result.alwaysDown = true
+			result.AlwaysDown = true
 		}
 	}
 

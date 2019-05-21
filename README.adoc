@@ -1,11 +1,12 @@
 = SunCalc
-:source-highlighter: coderay
+:source-highlighter: highlight.js
 
 SunCalc is a tiny BSD-licensed Golang library for calculating sun position,
 sunlight phases (times for sunrise, sunset, dusk, etc.),
 moon position and lunar phase for the given location and time,
-created originaly in Javascript by [Vladimir Agafonkin](http://agafonkin.com/en) ([@mourner](https://github.com/mourner))
+created originally in Javascript by [Vladimir Agafonkin](http://agafonkin.com/en) ([@mourner](https://github.com/mourner))
 as a part of the [SunCalc.net project](http://suncalc.net).
+
 Translated in GOLANG by Douglas Six
 
 Most calculations are based on the formulas given in the excellent Astronomy Answers articles
@@ -15,109 +16,140 @@ You can read about different twilight phases calculated by SunCalc
 in the [Twilight article on Wikipedia](http://en.wikipedia.org/wiki/Twilight).
 
 
-== Usage example - WIP
+== Usage example
 
-[source, javascript]
+[source, go]
 ----
 // get today's sunlight times for London
-var times = SunCalc.getTimes(new Date(), 51.5, -0.1);
+now := time.Now()
+times := suncalc.GetTimes(now, 51.5, -0.1)
+
+for _, oneTime := range times {
+
+    fmt.Printf("%-13s %d-%02d-%02d %02d:%02d:%02d\n", string(oneTime.MorningName),
+        oneTime.Time.Year(), oneTime.Time.Month(), oneTime.Time.Day(),
+        oneTime.Time.Hour(), oneTime.Time.Minute(), oneTime.Time.Second())
+}
 
 // format sunrise time from the Date object
-var sunriseStr = times.sunrise.getHours() + ':' + times.sunrise.getMinutes();
+var sunriseStr = times[suncalc.Sunrise].Time.getHours() + ':' + times[suncalc.Sunrise].Time.getMinutes();
 
 // get position of the sun (azimuth and altitude) at today's sunrise
-var sunrisePos = SunCalc.getPosition(times.sunrise, 51.5, -0.1);
+var sunrisePos = suncalc.GetPosition(times[suncalc.Sunrise].Time, 51.5, -0.1);
 
 // get sunrise azimuth in degrees
-var sunriseAzimuth = sunrisePos.azimuth * 180 / Math.PI;
+var sunriseAzimuth = sunrisePos.Azimuth * 180 / Math.PI;
 ----
 
-SunCalc is also available as an NPM package:
+SunCalc is also available as an `dep` package:
 
-```bash
-$ npm install suncalc
-```
-
-```js
-var SunCalc = require('suncalc');
-```
-
+[source, bash]
+----
+$ dep ensure --add github.com/sixdouglas/suncalc
+----
 
 == Reference
 
 === Sunlight times
 
-```javascript
-SunCalc.getTimes(/*Date*/ date, /*Number*/ latitude, /*Number*/ longitude)
-```
+[source, go]
+----
+suncalc.GetTimes(date time.Time, latitude float64, longitude float64)
+----
 
 Returns an object with the following properties (each is a `Date` object):
 
-| Property        | Description                                                              |
-| --------------- | ------------------------------------------------------------------------ |
-| `sunrise`       | sunrise (top edge of the sun appears on the horizon)                     |
-| `sunriseEnd`    | sunrise ends (bottom edge of the sun touches the horizon)                |
-| `goldenHourEnd` | morning golden hour (soft light, best time for photography) ends         |
-| `solarNoon`     | solar noon (sun is in the highest position)                              |
-| `goldenHour`    | evening golden hour starts                                               |
-| `sunsetStart`   | sunset starts (bottom edge of the sun touches the horizon)               |
-| `sunset`        | sunset (sun disappears below the horizon, evening civil twilight starts) |
-| `dusk`          | dusk (evening nautical twilight starts)                                  |
-| `nauticalDusk`  | nautical dusk (evening astronomical twilight starts)                     |
-| `night`         | night starts (dark enough for astronomical observations)                 |
-| `nadir`         | nadir (darkest moment of the night, sun is in the lowest position)       |
-| `nightEnd`      | night ends (morning astronomical twilight starts)                        |
-| `nauticalDawn`  | nautical dawn (morning nautical twilight starts)                         |
-| `dawn`          | dawn (morning nautical twilight ends, morning civil twilight starts)     |
+[cols="30h,70d"]
+|===
+| Property
+| Description
 
-```javascript
-SunCalc.addTime(/*Number*/ angleInDegrees, /*String*/ morningName, /*String*/ eveningName)
-```
 
-Adds a custom time when the sun reaches the given angle to results returned by `SunCalc.getTimes`.
+| `sunrise`
+| sunrise (top edge of the sun appears on the horizon)
 
-`SunCalc.times` property contains all currently defined times.
+| `sunriseEnd`
+| sunrise ends (bottom edge of the sun touches the horizon)
 
+| `goldenHourEnd`
+| morning golden hour (soft light, best time for photography) ends
+
+| `solarNoon`
+| solar noon (sun is in the highest position)
+
+| `goldenHour`
+| evening golden hour starts
+
+| `sunsetStart`
+| sunset starts (bottom edge of the sun touches the horizon)
+
+| `sunset`
+| sunset (sun disappears below the horizon, evening civil twilight starts)
+
+| `dusk`
+| dusk (evening nautical twilight starts)
+
+| `nauticalDusk`
+| nautical dusk (evening astronomical twilight starts)
+
+| `night`
+| night starts (dark enough for astronomical observations)
+
+| `nadir`
+| nadir (darkest moment of the night, sun is in the lowest position)
+
+| `nightEnd`
+| night ends (morning astronomical twilight starts)
+
+| `nauticalDawn`
+| nautical dawn (morning nautical twilight starts)
+
+| `dawn`
+| dawn (morning nautical twilight ends, morning civil twilight starts)
+|===
 
 === Sun position
 
-```javascript
-SunCalc.getPosition(/*Date*/ timeAndDate, /*Number*/ latitude, /*Number*/ longitude)
-```
+[source, go]
+----
+suncalc.GetPosition(timeAndDate time.Time, latitude float64, longitude float64)
+----
 
 Returns an object with the following properties:
 
- * `altitude`: sun altitude above the horizon in radians,
+ * `Altitude`: sun altitude above the horizon in radians,
  e.g. `0` at the horizon and `PI/2` at the zenith (straight over your head)
- * `azimuth`: sun azimuth in radians (direction along the horizon, measured from south to west),
+ * `Azimuth`: sun azimuth in radians (direction along the horizon, measured from south to west),
  e.g. `0` is south and `Math.PI * 3/4` is northwest
 
 
 === Moon position
 
-```javascript
-SunCalc.getMoonPosition(/*Date*/ timeAndDate, /*Number*/ latitude, /*Number*/ longitude)
-```
+[source, go]
+----
+suncalc.GetMoonPosition(date time.Time, latitude float64, longitude float64)
+----
 
 Returns an object with the following properties:
 
- * `altitude`: moon altitude above the horizon in radians
- * `azimuth`: moon azimuth in radians
- * `distance`: distance to moon in kilometers
- * `parallacticAngle`: parallactic angle of the moon in radians
+ * `Altitude`: moon altitude above the horizon in radians
+ * `Azimuth`: moon azimuth in radians
+ * `Distance`: distance to moon in kilometers
+ * `ParallacticAngle`: parallactic angle of the moon in radians
 
 
 === Moon illumination
 
-```javascript
-SunCalc.getMoonIllumination(/*Date*/ timeAndDate)
-```
+[source, go]
+----
+suncalc.GetMoonIllumination(timeAndDate time.Time)
+----
 
 Returns an object with the following properties:
 
- * `fraction`: illuminated fraction of the moon; varies from `0.0` (new moon) to `1.0` (full moon)
- * `phase`: moon phase; varies from `0.0` to `1.0`, described below
- * `angle`: midpoint angle in radians of the illuminated limb of the moon reckoned eastward from the north point of the disk;
+ * `Fraction`: illuminated fraction of the moon; varies from `0.0` (new moon) to `1.0` (full moon)
+ * `Phase`: moon phase; varies from `0.0` to `1.0`, described below
+ * `Angle`: midpoint angle in radians of the illuminated limb of the moon reckoned eastward from the north point of the disk;
  the moon is waxing if the angle is negative, and waning if positive
 
 Moon phase value should be interpreted like this:
@@ -138,22 +170,31 @@ The zenith angle can be used do draw the moon shape from the observers perspecti
 
 === Moon rise and set times
 
-```js
-SunCalc.getMoonTimes(/*Date*/ date, /*Number*/ latitude, /*Number*/ longitude[, inUTC])
-```
+[source, go]
+----
+suncalc.GetMoonTimes(date time.Time, latitude float64, longitude float64[, inUTC bool])
+----
 
 Returns an object with the following properties:
 
- * `rise`: moonrise time as `Date`
- * `set`: moonset time as `Date`
- * `alwaysUp`: `true` if the moon never rises/sets and is always _above_ the horizon during the day
- * `alwaysDown`: `true` if the moon is always _below_ the horizon
+ * `Rise`: moonrise time as `Date`
+ * `Set`: moonset time as `Date`
+ * `AlwaysUp`: `true` if the moon never rises/sets and is always _above_ the horizon during the day
+ * `AlwaysDown`: `true` if the moon is always _below_ the horizon
 
-By default, it will search for moon rise and set during local user's day (frou 0 to 24 hours).
+By default, it will search for moon rise and set during local user's day (from 0 to 24 hours).
 If `inUTC` is set to true, it will instead search the specified date from 0 to 24 UTC hours.
 
 == Changelog
 
-==== 1.0.0 - April 28, 2019
+==== 1.0.2 - Mai 21, 2019
+- Finish documentation.
+- Make sure all struct fields are visible from outside.
+
+==== 1.0.1 - Mai 18, 2019
+- Place SunCalc in his own package.
+- Make some struct variables visible from outside.
+
+==== 1.0.0 - Mai 18, 2019
 - First commit.
 
