@@ -254,9 +254,9 @@ func GetMoonPosition(date time.Time, lat float64, lng float64) MoonPosition {
 }
 
 type MoonIllumination struct {
-	fraction float64
-	phase    float64
-	angle    float64
+	Fraction float64
+	Phase    float64
+	Angle    float64
 }
 
 // calculations for illumination parameters of the moon,
