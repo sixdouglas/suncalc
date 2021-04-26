@@ -32,7 +32,7 @@ import (
 func main() {
 	var now = time.Now()
 
-  // get today's sunlight times for London
+	// get today's sunlight times for London
 	lat, long := 51.5, -0.1
 
 	// get the times for today, latitude, longitude, height below or above the
