@@ -4,7 +4,6 @@ package suncalc
 //   https://github.com/mourner/suncalc
 
 import (
-	"database/sql"
 	"math"
 	"time"
 )
@@ -15,6 +14,11 @@ const dayMs = 1000 * 60 * 60 * 24
 const J1970 = 2440588
 const J2000 = 2451545
 
+type NullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
+
 func timeToUnixMillis(date time.Time) int64 {
 	return int64(float64(date.UTC().UnixNano()) / millyToNano)
 }
@@ -22,10 +26,10 @@ func unixMillisToTime(date float64, location *time.Location) time.Time {
 	return time.Unix(0, int64(date*millyToNano)).In(location)
 }
 func toJulian(date time.Time) float64 { return float64(timeToUnixMillis(date))/dayMs - 0.5 + J1970 }
-func fromJulian(j float64, location *time.Location) sql.NullTime {
+func fromJulian(j float64, location *time.Location) NullTime {
 	invalidDate := time.Date(1677, 9, 21, 0, 12, 43, 145224192, time.UTC)
 	julianTime := unixMillisToTime((j+0.5-J1970)*dayMs, location)
-	return sql.NullTime{Time: julianTime, Valid: !invalidDate.Equal(julianTime.UTC())}
+	return NullTime{Time: julianTime, Valid: !invalidDate.Equal(julianTime.UTC())}
 }
 func toDays(date time.Time) float64 { return toJulian(date) - J2000 }
 
@@ -101,7 +105,7 @@ const (
 
 type DayTime struct {
 	Name  DayTimeName
-	Value sql.NullTime
+	Value NullTime
 }
 
 type dayTimeConf struct {
