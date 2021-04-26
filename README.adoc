@@ -20,47 +20,56 @@ in the [Twilight article on Wikipedia](http://en.wikipedia.org/wiki/Twilight).
 
 [source, go]
 ----
-// get today's sunlight times for London
-package mypackage
+package main
 
 import (
-	"database/sql"
-	"reflect"
-	"testing"
-	"time"
 	"fmt"
+	"github.com/pschou/go-suncalc"
 	"math"
-	"github.com/sixdouglas/suncalc"
+	"time"
 )
 
 func main() {
-    var now = time.Now()
-    var times = suncalc.GetTimes(now, 51.5, -0.1, 0, nil)
+	var now = time.Now()
 
-    for _, oneTime := range times {
+  // get today's sunlight times for London
+	lat, long := 51.5, -0.1
 
-        fmt.Printf("%-13s %d-%02d-%02d %02d:%02d:%02d\n", string(oneTime.Name),
-            oneTime.Value.Time.Year(), oneTime.Value.Time.Month(), oneTime.Value.Time.Day(),
-            oneTime.Value.Time.Hour(), oneTime.Value.Time.Minute(), oneTime.Value.Time.Second())
-    }
+	// get the times for today, latitude, longitude, height below or above the
+	// horizon, and in timezone
+	var times = suncalc.GetTimes(now, lat, long, 0, time.UTC)
 
-    // format sunrise time from the Date object
-    fmt.Printf("%d:%d", times[suncalc.Sunrise].Value.Time.Hour(), times[suncalc.Sunrise].Value.Time.Minute())
+	for _, oneTime := range times {
+		fmt.Printf("%-13s %d-%02d-%02d %02d:%02d:%02d\n", string(oneTime.Name),
+			oneTime.Value.Time.Year(), oneTime.Value.Time.Month(), oneTime.Value.Time.Day(),
+			oneTime.Value.Time.Hour(), oneTime.Value.Time.Minute(), oneTime.Value.Time.Second())
+	}
 
-    // get position of the sun (azimuth and altitude) at today's sunrise
-    var sunrisePos = suncalc.GetPosition(times[suncalc.Sunrise].Value.Time, 51.5, -0.1)
+	// format sunrise time from the Date object
+	fmt.Printf("Sunrise / Sunset time: %d:%02d / %d:%02d\n",
+		times[suncalc.Sunrise].Value.Time.Hour(), times[suncalc.Sunrise].Value.Time.Minute(),
+		times[suncalc.Sunset].Value.Time.Hour(), times[suncalc.Sunset].Value.Time.Minute(),
+	)
 
-    // get sunrise azimuth in degrees
-    var sunriseAzimuth = sunrisePos.Azimuth * 180 / math.Pi
-    fmt.Printf("%f", sunriseAzimuth)
+	// get position of the sun (azimuth and altitude) at today's sunrise
+	var sunrisePos = suncalc.GetPosition(times[suncalc.Sunrise].Value.Time, lat, long)
+
+	// get sunrise azimuth in degrees
+	var sunriseAzimuth = sunrisePos.Azimuth * 180 / math.Pi
+	fmt.Printf("Sunrise Azimuth: %f deg\n", sunriseAzimuth)
+
+	// get position of the sun (azimuth and altitude) at today's sunset
+	var sunsetPos = suncalc.GetPosition(times[suncalc.Sunset].Value.Time, lat, long)
+
+	// get the sunset azimuth in degrees
+	var sunsetAzimuth = sunsetPos.Azimuth * 180 / math.Pi
+	fmt.Printf("Sunset Azimuth: %f deg\n", sunsetAzimuth)
+
+	// get current position of the sun (azimuth and altitude) at today's sunrise
+	var sunPos = suncalc.GetPosition(now, lat, long)
+	fmt.Printf("Sun Azimuth: %f deg\n", sunPos.Azimuth*180/math.Pi)
+	fmt.Printf("Sun Altitude: %f deg\n", sunPos.Altitude*180/math.Pi)
 }
-----
-
-SunCalc is also available as an `dep` package:
-
-[source, bash]
-----
-$ dep ensure --add github.com/sixdouglas/suncalc
 ----
 
 == Reference
