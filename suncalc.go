@@ -14,10 +14,7 @@ const dayMs = 1000 * 60 * 60 * 24
 const J1970 = 2440588
 const J2000 = 2451545
 
-type NullTime struct {
-	Time  time.Time
-	Valid bool // Valid is true if Time is not NULL
-}
+var invalidDate = time.Date(1677, 9, 21, 0, 12, 43, 145224192, time.UTC)
 
 func timeToUnixMillis(date time.Time) int64 {
 	return int64(float64(date.UTC().UnixNano()) / millyToNano)
@@ -26,10 +23,12 @@ func unixMillisToTime(date float64, location *time.Location) time.Time {
 	return time.Unix(0, int64(date*millyToNano)).In(location)
 }
 func toJulian(date time.Time) float64 { return float64(timeToUnixMillis(date))/dayMs - 0.5 + J1970 }
-func fromJulian(j float64, location *time.Location) NullTime {
-	invalidDate := time.Date(1677, 9, 21, 0, 12, 43, 145224192, time.UTC)
+func fromJulian(j float64, location *time.Location) time.Time {
 	julianTime := unixMillisToTime((j+0.5-J1970)*dayMs, location)
-	return NullTime{Time: julianTime, Valid: !invalidDate.Equal(julianTime.UTC())}
+	if invalidDate.Equal(julianTime.UTC()) {
+		return time.Time{}
+	}
+	return julianTime
 }
 func toDays(date time.Time) float64 { return toJulian(date) - J2000 }
 
@@ -105,7 +104,7 @@ const (
 
 type DayTime struct {
 	Name  DayTimeName
-	Value NullTime
+	Value time.Time
 }
 
 type dayTimeConf struct {
@@ -159,6 +158,10 @@ var times = []dayTimeConf{
 	{6, GoldenHourEnd, GoldenHour},
 }
 
+var DayTimeNames = []DayTimeName{
+	NightEnd, NauticalDawn, Dawn, Sunrise, SunriseEnd, GoldenHourEnd, GoldenHour, SunsetStart, Sunset, Dusk, NauticalDusk, Night,
+}
+
 // calculations for sun times
 const J0 = 0.0009
 
@@ -174,6 +177,9 @@ func hourAngle(h float64, phi float64, d float64) float64 {
 	return math.Acos((math.Sin(h) - math.Sin(phi)*math.Sin(d)) / (math.Cos(phi) * math.Cos(d)))
 }
 func observerAngle(height float64) float64 {
+	if height == 0 {
+		return 0
+	}
 	return -2.076 * math.Sqrt(height) / 60.0
 }
 
@@ -184,13 +190,28 @@ func getSetJ(h float64, lw float64, phi float64, dec float64, n float64, M float
 	return solarTransitJ(a, M, L)
 }
 
+// calculates sun times for a given date and latitude/longitude
+func GetTimes(date time.Time, lat float64, lng float64) map[DayTimeName]DayTime {
+	return GetTimesWithObserver(date, Observer{lat, lng, 0, time.UTC})
+}
+
+type Observer struct {
+	// Location of the observer
+	Latitude, Longitude,
+
+	// The observer height (in meters) relative to the horizon
+	Height float64
+
+	Location *time.Location
+}
+
 // calculates sun times for a given date and latitude/longitude, and,
 // the observer height (in meters) relative to the horizon, you can set it to 0 if unknown
-func GetTimes(date time.Time, lat float64, lng float64, height float64, location *time.Location) map[DayTimeName]DayTime {
-	lw := rad * -lng
-	phi := rad * lat
+func GetTimesWithObserver(date time.Time, obs Observer) map[DayTimeName]DayTime {
+	lw := rad * -obs.Longitude
+	phi := rad * obs.Latitude
 
-	dh := observerAngle(height)
+	dh := observerAngle(obs.Height)
 
 	d := toDays(date)
 	n := julianCycle(d, lw)
@@ -205,8 +226,8 @@ func GetTimes(date time.Time, lat float64, lng float64, height float64, location
 	var oneTime dayTimeConf
 	result := make(map[DayTimeName]DayTime)
 
-	result[SolarNoon] = DayTime{SolarNoon, fromJulian(Jnoon, location)}
-	result[Nadir] = DayTime{Nadir, fromJulian(Jnoon-0.5, location)}
+	result[SolarNoon] = DayTime{SolarNoon, fromJulian(Jnoon, obs.Location)}
+	result[Nadir] = DayTime{Nadir, fromJulian(Jnoon-0.5, obs.Location)}
 
 	for i := 0; i < len(times); i++ {
 		oneTime = times[i]
@@ -215,8 +236,8 @@ func GetTimes(date time.Time, lat float64, lng float64, height float64, location
 		Jset := getSetJ(h0, lw, phi, dec, n, M, L)
 		Jrise := Jnoon - (Jset - Jnoon)
 
-		result[oneTime.morningName] = DayTime{oneTime.morningName, fromJulian(Jrise, location)}
-		result[oneTime.eveningName] = DayTime{oneTime.eveningName, fromJulian(Jset, location)}
+		result[oneTime.morningName] = DayTime{oneTime.morningName, fromJulian(Jrise, obs.Location)}
+		result[oneTime.eveningName] = DayTime{oneTime.eveningName, fromJulian(Jset, obs.Location)}
 	}
 
 	return result
@@ -316,11 +337,21 @@ type MoonTimes struct {
 }
 
 // calculations for moon rise/set times are based on http://www.stargazing.net/kepler/moonrise.html article
-func GetMoonTimes(date time.Time, lat float64, lng float64, location *time.Location) MoonTimes {
-	t := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, location)
+func GetMoonTimes(date time.Time, lat float64, lng float64, inUTC bool) MoonTimes {
+	if inUTC {
+		return GetMoonTimesWithObserver(date, Observer{lat, lng, 0, time.UTC})
+	}
+	return GetMoonTimesWithObserver(date, Observer{lat, lng, 0, date.Location()})
+}
 
-	hc := 0.133 * rad
-	h0 := GetMoonPosition(t, lat, lng).Altitude - hc
+// calculations for moon rise/set times are based on http://www.stargazing.net/kepler/moonrise.html article
+func GetMoonTimesWithObserver(date time.Time, obs Observer) MoonTimes {
+	t := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, obs.Location)
+
+	dh := observerAngle(obs.Height)
+
+	hc := (0.133 + dh) * rad
+	h0 := GetMoonPosition(t, obs.Latitude, obs.Longitude).Altitude - hc
 	var ye float64
 	var x1 float64
 	var x2 float64
@@ -331,8 +362,8 @@ func GetMoonTimes(date time.Time, lat float64, lng float64, location *time.Locat
 	i := int64(1)
 	for i <= 24 {
 
-		h1 := GetMoonPosition(hoursLater(t, i), lat, lng).Altitude - hc
-		h2 := GetMoonPosition(hoursLater(t, i+1), lat, lng).Altitude - hc
+		h1 := GetMoonPosition(hoursLater(t, i), obs.Latitude, obs.Longitude).Altitude - hc
+		h2 := GetMoonPosition(hoursLater(t, i+1), obs.Latitude, obs.Longitude).Altitude - hc
 		a := (h0+h2)/2 - h1
 		b := (h2 - h0) / 2
 		xe := -b / (2 * a)
