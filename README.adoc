@@ -20,32 +20,56 @@ in the [Twilight article on Wikipedia](http://en.wikipedia.org/wiki/Twilight).
 
 [source, go]
 ----
-// get today's sunlight times for London
-now := time.Now()
-times := suncalc.GetTimes(now, 51.5, -0.1)
+package main
 
-for _, oneTime := range times {
+import (
+	"fmt"
+	"github.com/pschou/go-suncalc"
+	"math"
+	"time"
+)
 
-    fmt.Printf("%-13s %d-%02d-%02d %02d:%02d:%02d\n", string(oneTime.MorningName),
-        oneTime.Time.Year(), oneTime.Time.Month(), oneTime.Time.Day(),
-        oneTime.Time.Hour(), oneTime.Time.Minute(), oneTime.Time.Second())
+func main() {
+	var now = time.Now()
+
+	// get today's sunlight times for London
+	lat, long := 51.5, -0.1
+
+	// get the times for today, latitude, longitude, height below or above the
+	// horizon, and in timezone
+	var times = suncalc.GetTimes(now, lat, long, 0, time.UTC)
+
+	for _, oneTime := range times {
+		fmt.Printf("%-13s %d-%02d-%02d %02d:%02d:%02d\n", string(oneTime.Name),
+			oneTime.Value.Time.Year(), oneTime.Value.Time.Month(), oneTime.Value.Time.Day(),
+			oneTime.Value.Time.Hour(), oneTime.Value.Time.Minute(), oneTime.Value.Time.Second())
+	}
+
+	// format sunrise time from the Date object
+	fmt.Printf("Sunrise / Sunset time: %d:%02d / %d:%02d\n",
+		times[suncalc.Sunrise].Value.Time.Hour(), times[suncalc.Sunrise].Value.Time.Minute(),
+		times[suncalc.Sunset].Value.Time.Hour(), times[suncalc.Sunset].Value.Time.Minute(),
+	)
+
+	// get position of the sun (azimuth and altitude) at today's sunrise
+	var sunrisePos = suncalc.GetPosition(times[suncalc.Sunrise].Value.Time, lat, long)
+
+	// get sunrise azimuth in degrees
+	var sunriseAzimuth = sunrisePos.Azimuth * 180 / math.Pi
+	fmt.Printf("Sunrise Azimuth: %f deg\n", sunriseAzimuth)
+
+	// get position of the sun (azimuth and altitude) at today's sunset
+	var sunsetPos = suncalc.GetPosition(times[suncalc.Sunset].Value.Time, lat, long)
+
+	// get the sunset azimuth in degrees
+	var sunsetAzimuth = sunsetPos.Azimuth * 180 / math.Pi
+	fmt.Printf("Sunset Azimuth: %f deg\n", sunsetAzimuth)
+
+	// get current position of the sun (azimuth and altitude) at today's sunrise
+	var sunPos = suncalc.GetPosition(now, lat, long)
+	fmt.Printf("Sun Azimuth: %f deg\n", sunPos.Azimuth*180/math.Pi)
+	fmt.Printf("Sun Altitude: %f deg\n", sunPos.Altitude*180/math.Pi)
 }
-
-// format sunrise time from the Date object
-var sunriseStr = times[suncalc.Sunrise].Time.getHours() + ':' + times[suncalc.Sunrise].Time.getMinutes();
-
-// get position of the sun (azimuth and altitude) at today's sunrise
-var sunrisePos = suncalc.GetPosition(times[suncalc.Sunrise].Time, 51.5, -0.1);
-
-// get sunrise azimuth in degrees
-var sunriseAzimuth = sunrisePos.Azimuth * 180 / Math.PI;
-----
-
-SunCalc is also available as an `dep` package:
-
-[source, bash]
-----
-$ dep ensure --add github.com/sixdouglas/suncalc
 ----
 
 == Reference
@@ -54,7 +78,7 @@ $ dep ensure --add github.com/sixdouglas/suncalc
 
 [source, go]
 ----
-suncalc.GetTimes(date time.Time, latitude float64, longitude float64)
+suncalc.GetTimes(date time.Time, latitude float64, longitude float64, height float64, location *time.Location)
 ----
 
 Returns an object with the following properties (each is a `Date` object):
@@ -207,14 +231,24 @@ If `inUTC` is set to true, it will instead search the specified date from 0 to 2
 
 == Changelog
 
-==== 1.0.2 - Mai 21, 2019
-- Finish documentation.
-- Make sure all struct fields are visible from outside.
+=== 1.1.0 - Mai 23, 2020
+* `suncalc.GetTimes()` now takes two additional parameters:
+** `height`: positive elevation position. Can be set to 0, if not known.
+** `location`: time.Location for the result Time. It can be `nil`
+* `DayTime` structure members changed. `MorningName` becomes `Name` and `Time` becomes `Value` of type `sql.NullTime`
+to have the valuable information about the validity of the date. In fact, in some places and time some values are
+not possible: close to the polars the sun does not set in summer and does not rise in winter.
+* Add some unit tests
+* Update Documentation
 
-==== 1.0.1 - Mai 18, 2019
-- Place SunCalc in his own package.
-- Make some struct variables visible from outside.
+=== 1.0.2 - Mai 21, 2019
+* Finish documentation.
+* Make sure all struct fields are visible from outside.
 
-==== 1.0.0 - Mai 18, 2019
-- First commit.
+=== 1.0.1 - Mai 18, 2019
+* Place SunCalc in his own package.
+* Make some struct variables visible from outside.
+
+=== 1.0.0 - Mai 18, 2019
+* First commit.
 
